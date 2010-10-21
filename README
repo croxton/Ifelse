@@ -1,0 +1,34 @@
+Early parsing of advanced conditionals in EE templates. 
+This is the version for EE 2.x.
+
+{exp:ifelse parse="inward"}	
+	{if member_id == '1' OR group_id == '2'}
+		Admin content
+	{if:elseif logged_in}
+		Member content
+	{if:else}
+		Public content
+	{/if}
+{/exp:ifelse}
+
+To preserve {if no results} conditionals inside nested tags, wrap your 'no results' content with {no_results}{/no_results}. Example:
+
+{exp:ifelse parse="inward"}	
+	{if segment_1 == 'news' AND segment_2 == 'category'}
+		News category page
+		{exp:channel:entries channel="news"}
+			{no_results} 
+				No results 
+			{/no_results}
+		{/exp:channel:entries}
+	{if:elseif segment_1 == 'news' AND segment_2 == ''}
+	 	News landing page
+	{if:else}
+		News story page
+	{/if}
+{/exp:ifelse}
+
+Some notes about nesting:
+This plugin will not parse advanced conditionals *inside* any nested plugin/module tags; these will be left untouched for the parent tag to process.
+
+This plugin cannot currently be nested inside itself due to a flaw in the way the EE template parser works. However, the if/else conditional tags themselves can be nested.
