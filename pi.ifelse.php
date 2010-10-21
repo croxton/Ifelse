@@ -2,21 +2,22 @@
 
 $plugin_info = array(
   'pi_name' => 'IfElse',
-  'pi_version' =>'1.0',
+  'pi_version' =>'1.1',
   'pi_author' =>'Mark Croxton',
   'pi_author_url' => 'http://www.hallmark-design.co.uk/',
-  'pi_description' => 'If/Else advanced conditional logic early parsing',
+  'pi_description' => 'Early parsing of if/else advanced conditionals (EE 1.x)',
   'pi_usage' => Ifelse::usage()
   );
 
 class Ifelse {
 	
-	var $return_data = '';
+	public $return_data = '';
+	private $_ph = array();
 	
 	/** 
 	 * Constructor
 	 *
-	 * Parses advanced conditionals in tagdata
+	 * Parses advanced conditionals in template tagdata
 	 *
 	 * @access public
 	 * @return void
@@ -25,33 +26,42 @@ class Ifelse {
 	{
 		global $TMPL, $FNS, $SESS;
 		
-		// the variables we want to find
-		$var = $TMPL->fetch_param('variables') ? $TMPL->fetch_param('variables') : '';
+		$tagdata = $TMPL->tagdata;
 		
-		// parse the parameter to get our variables
-		$conditions = array();
-		$var = explode('|', $var);
+		// replace content inside nested tags with indexed placeholders, storing it in an array for later
+		$pattern = '/{exp\b[^>]*}(.*){\/exp\b[^>]*}/Usi';
 		
-		foreach($var as $val)
+		$tagdata = preg_replace_callback($pattern, array(get_class($this), '_placeholders'), $tagdata);
+		
+		// parse advanced conditionals
+		$tagdata = $TMPL->advanced_conditionals($tagdata);
+		
+		// restore original content inside nested tags, using str_replace for speed
+		foreach ($this->_ph as $index => $val)
 		{
-			$pair = explode('=', $val);
-			
-			// parse any session userdata vars that might have been used
-			if (strncmp($pair[1], '{', 1) == 0)
-			{
-				$pair[1] = trim($pair[1], '{}');
-				if (isset($SESS->userdata["{$pair[1]}"]) )
-				{
-					$pair[1] = $SESS->userdata[$pair[1]];
-				}
-			}
-			$conditions[$pair[0]] = $pair[1];
+			$tagdata = str_replace('[_'.__CLASS__.'_'.$index.']', $val, $tagdata);
 		}
 		
-		$tagdata = $FNS->prep_conditionals($TMPL->tagdata, $conditions);
-
-		// replace namespaced no_results with the real deal
-		$this->return_data = str_replace(strtolower(__CLASS__).'_no_results', 'no_results', $tagdata);
+		// restore no_results conditionals
+		$tagdata = str_replace('{no_results}', '{if no_results}', $tagdata);
+		$tagdata = str_replace('{/no_results}', '{/if}', $tagdata);
+		
+		// return
+		$this->return_data = $tagdata;
+	}
+	
+	/** 
+	 * _placeholders
+	 *
+	 * Replaces nested tag content with placeholders
+	 *
+	 * @access private
+	 * @return string
+	 */
+	private function _placeholders($matches)
+	{
+		$this->_ph[] = $matches[0];
+		return '[_'.__CLASS__.'_'.count($this->_ph).']';
 	}
 
 	// usage instructions
@@ -63,21 +73,37 @@ class Ifelse {
 HOW TO USE
 -------------------
 
-{exp:ifelse variables="member_id={member_id}|group_id={group_id}" parse="inward"}	
+{exp:ifelse parse="inward"}	
 	{if member_id == '1' OR group_id == '2'}
-		Privileged content
+		Admin content
+	{if:elseif logged_in}
+		Member content
 	{if:else}
 		Public content
 	{/if}
 {/exp:ifelse}
 
-{exp:ifelse variables="segment_1={segment_1}" parse="inward"}	
-	{if segment_1 == 'news'}
-		News page
+To preserve {if no results} conditionals inside nested tags, wrap your 'no results' content with {no_results}{/no_results}. Example:
+
+{exp:ifelse parse="inward"}	
+	{if segment_1 == 'news' AND segment_2 == 'category'}
+		News category page
+		{exp:channel:entries channel="news"}
+			{no_results} 
+				No results 
+			{/no_results}
+		{/exp:channel:entries}
+	{if:elseif segment_1 == 'news' AND segment_2 == ''}
+	 	News landing page
 	{if:else}
-		Another page
+		News story page
 	{/if}
 {/exp:ifelse}
+
+Some notes about nesting:
+This plugin will not parse advanced conditionals *inside* any nested plugin/module tags; these will be left untouched for the parent tag to process.
+
+This plugin cannot currently be nested inside itself due to a flaw in the way the EE template parser works. However, the if/else conditional tags themselves can be nested.
 
 	<?php
 		$buffer = ob_get_contents();
@@ -85,3 +111,6 @@ HOW TO USE
 		return $buffer;
 	}	
 }
+
+/* End of file pi.ifelse.php */ 
+/* Location: ./system/plugins/pi.ifelse.php */
