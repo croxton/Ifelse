@@ -2,7 +2,7 @@
 
 $plugin_info = array(
   'pi_name' => 'IfElse',
-  'pi_version' =>'1.1',
+  'pi_version' =>'1.2',
   'pi_author' =>'Mark Croxton',
   'pi_author_url' => 'http://www.hallmark-design.co.uk/',
   'pi_description' => 'Early parsing of if/else advanced conditionals (EE 1.x)',
@@ -29,8 +29,8 @@ class Ifelse {
 		$tagdata = $TMPL->tagdata;
 		
 		// replace content inside nested tags with indexed placeholders, storing it in an array for later
-		$pattern = '/{exp\b[^>]*}(.*){\/exp\b[^>]*}/Usi';
-		
+		// be careful to match *outer* tags only
+		$pattern = '/{exp:(?>(?!{\/?exp:).|(?R))*{\/exp:/si';
 		$tagdata = preg_replace_callback($pattern, array(get_class($this), '_placeholders'), $tagdata);
 		
 		// parse advanced conditionals
@@ -39,7 +39,7 @@ class Ifelse {
 		// restore original content inside nested tags, using str_replace for speed
 		foreach ($this->_ph as $index => $val)
 		{
-			$tagdata = str_replace('[_'.__CLASS__.'_'.$index.']', $val, $tagdata);
+			$tagdata = str_replace('[_'.__CLASS__.'_'.($index+1).']', $val, $tagdata);
 		}
 		
 		// restore no_results conditionals
