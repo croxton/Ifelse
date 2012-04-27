@@ -3,7 +3,7 @@ if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 
 $plugin_info = array(
   'pi_name' => 'IfElse',
-  'pi_version' =>'1.4',
+  'pi_version' =>'2.0.0',
   'pi_author' =>'Mark Croxton',
   'pi_author_url' => 'http://www.hallmark-design.co.uk/',
   'pi_description' => 'Early parsing of if/else advanced conditionals (EE 2.x)',
@@ -12,8 +12,7 @@ $plugin_info = array(
 
 class Ifelse {
 	
-	public  $return_data = '';
-	private $_ph = array();
+	public $return_data = '';
 	
 	/** 
 	 * Constructor
@@ -23,63 +22,102 @@ class Ifelse {
 	 * @access public
 	 * @return void
 	 */
-	public function Ifelse() 
+	public function __construct() 
 	{
 		$this->EE =& get_instance();
 		
-		// reduce the PCRE default recursion limit to a safe level to prevent a server crash 
-		// (segmentation fault) when the available stack is exhausted before recursion limit reached
-		// Apache *nix executable stack size is 8Mb, so safe size is 16777
-		// Apache Win32 executable stack size is 256Kb, so safe size is 524
-		ini_set('pcre.recursion_limit', '16777');
-		
-		// PCRE default backtrack limit is low on PHP <5.3.6 
-		// Increase it to the default value in newer versions of PHP
-		ini_set('pcre.backtrack_limit', '1000000');
-		
-		$tagdata = $this->EE->TMPL->tagdata;
-		
 		// record if PHP is enabled for this template
 		$parse_php = $this->EE->TMPL->parse_php;
-		
-		// replace content inside nested tag pairs with indexed placeholders, storing it in an array for later
-		// be careful to match *outer* tags only
-		$pattern = '#{exp:(?>(?:[^{]++|{(?!\/?exp:[^}]*}))+|(?R))*{\/exp:#si';
-		
-		$tagdata = preg_replace_callback($pattern, array(get_class($this), '_placeholders'), $tagdata);
-		
-		// parse advanced conditionals - note: this will set parse_php to FALSE
-		$tagdata = $this->EE->TMPL->advanced_conditionals($tagdata);
 
-		// restore original content inside nested tags, using str_replace for speed
-		foreach ($this->_ph as $index => $val)
+		// optionally parse global variables and segments
+		if ((bool) preg_match('/1|on|yes|y/i', $this->EE->TMPL->fetch_param('parse_vars', 'no')))
 		{
-			$tagdata = str_replace('[_'.__CLASS__.'_'.($index+1).']', $val, $tagdata);
+			// insert segment vars into the globals array
+			for ($i = 1; $i < 10; $i++)
+			{
+				$this->EE->config->_global_vars['segment_'.$i] = $this->EE->uri->segment($i);
+			}
+			
+			// stash vars {stash:var}
+			if (isset($this->EE->session->cache['stash']))
+			{
+				if (count($this->EE->session->cache['stash']) > 0)
+				{
+					foreach($this->EE->session->cache['stash'] as $key => $val)
+					{
+						$this->EE->config->_global_vars['stash:'.$key] = $val;
+					}
+				}
+			}
+			
+			// replace into template
+			foreach ($this->EE->config->_global_vars as $key => $val)
+			{
+				$this->EE->TMPL->tagdata = str_replace(LD.$key.RD, $val, $this->EE->TMPL->tagdata);
+			}
+		}
+
+		/*
+		================================================================
+    	Create a new instance of the Template object to parse the tags 
+		inside our tagdata. We'll replace the tags with markers, then 
+		parse advanced conditionals first instead of the tags
+		================================================================
+		*/
+		
+		// clone then unset the original Template object
+		$TMPL2 = $this->EE->TMPL;
+		unset($this->EE->TMPL);
+		
+		// initialise a new object instance to do the heavy lifting
+		$this->EE->TMPL = new EE_Template();
+		$this->EE->TMPL->start_microtime = $TMPL2->start_microtime;
+		$this->EE->TMPL->template = $TMPL2->tagdata;
+		$this->EE->TMPL->tag_data	= array();
+		$this->EE->TMPL->var_single = array();
+		$this->EE->TMPL->var_cond	= array();
+		$this->EE->TMPL->var_pair	= array();
+		$this->EE->TMPL->plugins = $TMPL2->plugins;
+		$this->EE->TMPL->modules = $TMPL2->modules;
+		
+		 // create a markers in the template for each tag (without actually parsing them)
+		$this->EE->TMPL->parse_tags();
+		
+		 // parse advanced conditionals
+		$this->EE->TMPL->template = $TMPL2->advanced_conditionals($this->EE->TMPL->template);
+		
+		// reset the loop counter
+		$this->EE->TMPL->loop_count = 0;
+		
+		// copy template data back to our temporary clone	
+		$TMPL2->tagdata = $this->EE->TMPL->template;
+		$TMPL2->log = array_merge($TMPL2->log, $this->EE->TMPL->log);
+		
+		// now loop through and find the original chunk for each marker in the template
+		for ($i = 0, $ctd = count($this->EE->TMPL->tag_data); $i < $ctd; $i++)
+		{	
+			// replace the chunk into the template
+			$TMPL2->tagdata = str_replace('M'.$i.$this->EE->TMPL->marker, $this->EE->TMPL->tag_data[$i]['chunk'], $TMPL2->tagdata);
 		}
 		
+		// restore the original object
+		foreach (get_object_vars($TMPL2) as $key => $value)
+		{
+			$this->EE->TMPL->$key = $value;
+		}
+		
+		$this->EE->TMPL = $TMPL2;	
+		unset($TMPL2);
+		
 		// restore no_results conditionals
-		$tagdata = str_replace('{no_results}', '{if no_results}', $tagdata);
-		$tagdata = str_replace('{/no_results}', '{/if}', $tagdata);
+		$this->EE->TMPL->tagdata = str_replace('{no_results}', '{if no_results}', $this->EE->TMPL->tagdata);
+		$this->EE->TMPL->tagdata = str_replace('{/no_results}', '{/if}', $this->EE->TMPL->tagdata);
 		
 		// restore original parse_php flag for this template
 		$this->EE->TMPL->parse_php = $parse_php;
 		
 		// return
-		$this->return_data = $tagdata;
-	}
-	
-	/** 
-	 * _placeholders
-	 *
-	 * Replaces nested tag content with placeholders
-	 *
-	 * @access private
-	 * @return string
-	 */	
-	private function _placeholders($matches)
-	{
-		$this->_ph[] = $matches[0];
-		return '[_'.__CLASS__.'_'.count($this->_ph).']';
+		$this->return_data = $this->EE->TMPL->tagdata;
 	}
 
 	// usage instructions
