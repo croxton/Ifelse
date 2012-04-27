@@ -14,7 +14,7 @@ Early parsing of advanced conditionals in EE templates.
 1. Create a folder called 'ifelse' (note: all lowercase) in ./system/expressionengine/third_party/
 2. Copy the file pi.ifelse.php into this folder
 
-## Example use
+## Examples
 
 	{exp:ifelse parse="inward"}	
 		{if member_id == '1' OR group_id == '2'}
@@ -26,17 +26,17 @@ Early parsing of advanced conditionals in EE templates.
 		{/if}
 	{/exp:ifelse}
 	
-## Parsing global variables and [Stash](https://github.com/croxton/Stash) variables
+### Parsing global variables and [Stash](https://github.com/croxton/Stash) variables
 
 	{exp:ifelse parse="inward" parse_vars="yes"}	
 		{if stash:my_var == "one"}
 			One
-		{if:elseif my_snippet_var == "two}
+		{if:elseif my_snippet_var == "two"}
 			Two
 		{/if}
 	{/exp:ifelse}
 
-## Preserving {if no results}
+### Preserving {if no results}
 
 To preserve {if no results} conditionals inside nested tags, wrap your 'no results' content with {no_results}{/no_results}. Example:
 
