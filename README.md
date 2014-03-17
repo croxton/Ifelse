@@ -2,7 +2,7 @@
 
 * Author: [Mark Croxton](http://hallmark-design.co.uk/)
 
-## Version 2.0.0 beta
+## Version 2.0.1
 
 * Requires: [ExpressionEngine 2](http://expressionengine.com/)
 
@@ -15,6 +15,9 @@ Early parsing of advanced conditionals in EE templates.
 2. Copy the file pi.ifelse.php into this folder
 
 ## Examples
+
+Use like this when you want to parse conditionals that wrap tags, *BEFORE* those tags are parsed. 
+Only the tags inside matching conditionals will subsequently be parsed.
 
 	{exp:ifelse parse="inward"}	
 		{if member_id == '1' OR group_id == '2'}
@@ -36,6 +39,38 @@ Early parsing of advanced conditionals in EE templates.
 		{/if}
 	{/exp:ifelse}
 
+### "Unsafe" conditional parsing
+
+Use this method only when you want advanced conditionals to be parsed *AFTER* the tags IfElse wraps have been parsed. The `safe="no"` parameter disables certain checks and safety measures and can signigicantly reduce the overhead of EE's own advanced conditional parser (savings of up to 1/4 of total template execution time are possible). This works best when you have a large number of conditionals. 
+
+The `protect=""` parameter can be used to specify special types of content to protect while parsing connditionals when using the "unsafe" method (currently 'javascript' and 'php').
+
+	{exp:ifelse safe="no" protect="javascript|php"}	
+		{if segment_1 == 'about'}
+			About 
+		{if:elseif segment_1 == "services"}
+			Services 
+		{if:else}
+			Default
+		{/if}
+	{/exp:ifelse}
+
+Please be aware that when using `safe="no"` you may see parse errors with some conditionals that make use of un-quoted variables.
+
+Avoid this syntax where possible:
+
+	{if my_variable == "about"}...{/if}
+
+Do this instead:
+
+	{if "{my_variable}" == "about"}...{/if}
+
+
+When evaluating variables containing numbers, it's safe to do this:
+
+	{if {my_number} == 2}...{/if}
+
+
 ### Preserving {if no results}
 
 To preserve {if no results} conditionals inside nested tags, wrap your 'no results' content with {no_results}{/no_results}. Example:
@@ -55,8 +90,7 @@ To preserve {if no results} conditionals inside nested tags, wrap your 'no resul
 		{/if}
 	{/exp:ifelse}
 
+
 ## Nested conditionals
 
-This plugin will not parse advanced conditionals *inside* any plugin/module tag pairs; these will be left untouched for the parent tag to process.
-
-This plugin cannot be nested inside itself. However, the if/else conditional tags themselves can be nested and only the matching condition will be parsed.
+With parse="inward" is used with this plugin, advanced conditionals *inside* any plugin/module tag pairs wrapped by IfElse will not be evaluated; these will be left untouched for the parent tag to process.
