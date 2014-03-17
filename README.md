@@ -46,9 +46,9 @@ Use this method only when you want advanced conditionals to be parsed *AFTER* th
 The `protect=""` parameter can be used to specify special types of content to protect while parsing connditionals when using the "unsafe" method (currently 'javascript' and 'php').
 
 	{exp:ifelse safe="no" protect="javascript|php"}	
-		{if segment_1 == 'about'}
+		{if "{segment_1}" == "about"}
 			About 
-		{if:elseif segment_1 == "services"}
+		{if:elseif "{segment_1}" == "services"}
 			Services 
 		{if:else}
 			Default

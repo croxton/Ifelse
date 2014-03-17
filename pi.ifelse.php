@@ -276,9 +276,9 @@ to squeeze additional performance from your templates. Savings of up to 1/4 of t
 The protect="" parameter can be used to specify types of content to protect while parsing connditionals.
 
 {exp:ifelse safe="no" protect="javascript|php"}	
-	{if segment_1 == 'about'}
+	{if "{segment_1}" == "about"}
 		About 
-	{if:elseif segment_1 == "services"}
+	{if:elseif "{segment_1}" == "services"}
 		Services 
 	{if:else}
 		Default
