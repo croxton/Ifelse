@@ -104,6 +104,10 @@ class Ifelse {
 		// parse advanced conditionals
 		if ($safe)
 		{
+			if ( ! isset($TMPL2->layout_conditionals))
+            {
+                $TMPL2->layout_conditionals = array();
+            }
 			ee()->TMPL->template = $TMPL2->advanced_conditionals(ee()->TMPL->template);
 		}
 		else
