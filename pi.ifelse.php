@@ -227,7 +227,7 @@ class Ifelse {
 	}
 
 	// usage instructions
-	public function usage() 
+	public static function usage() 
 	{
   		ob_start();
 ?>
